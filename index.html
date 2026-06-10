@@ -1,0 +1,806 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhisperSeal — голосовой ввод текста для Mac</title>
+<meta name="description" content="Голосовой ввод текста для macOS. Зажми правый Option, говори, отпусти — текст вставлен. Полностью офлайн, приватно, бесплатно, без подписок.">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="apple-touch-icon" href="assets/icon.png">
+
+<!-- Open Graph -->
+<meta property="og:title" content="WhisperSeal — голосовой ввод текста для Mac">
+<meta property="og:description" content="Зажми ⌥, говори, отпусти — текст вставлен. Офлайн, приватно, бесплатно.">
+<meta property="og:image" content="assets/icon.png">
+<meta property="og:type" content="website">
+
+<style>
+  /* ===================== Design tokens ===================== */
+  :root {
+    /* Brand accents (из самого приложения) */
+    --maroon: #9E1C29;
+    --maroon-dark: #871722;
+    --forest: #296F38;
+    --forest-dark: #21592D;
+
+    /* Neutrals — спокойный морской/тёплый нейтральный фон */
+    --bg: #fbfaf8;
+    --bg-soft: #f3f1ec;
+    --surface: #ffffff;
+    --surface-2: #f7f5f1;
+    --border: #e7e3dc;
+    --border-strong: #d9d4ca;
+
+    --text: #1c1b19;
+    --text-muted: #6b665d;
+    --text-faint: #9a958c;
+
+    /* Морской спокойный оттенок для деталей hero */
+    --sea: #6f9fb3;
+    --sea-soft: #e8eff2;
+
+    /* Type */
+    --font: -apple-system, BlinkMacSystemFont, system-ui, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+    /* Spacing */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 32px;
+    --space-xl: 64px;
+    --space-2xl: 96px;
+
+    /* Layout */
+    --max-width: 1120px;
+    --radius: 16px;
+    --radius-lg: 24px;
+    --radius-sm: 10px;
+
+    /* Shadows */
+    --shadow-sm: 0 1px 3px rgba(28,27,25,0.06), 0 1px 2px rgba(28,27,25,0.04);
+    --shadow-md: 0 10px 30px rgba(28,27,25,0.08), 0 2px 8px rgba(28,27,25,0.05);
+    --shadow-lg: 0 24px 60px rgba(28,27,25,0.12), 0 8px 20px rgba(28,27,25,0.07);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16151a;
+      --bg-soft: #1c1b21;
+      --surface: #201f26;
+      --surface-2: #26252d;
+      --border: #34323c;
+      --border-strong: #423f4b;
+
+      --text: #f3f1ee;
+      --text-muted: #aaa6b0;
+      --text-faint: #807c87;
+
+      --sea: #6f9fb3;
+      --sea-soft: #1e2730;
+
+      --maroon: #e2596a;
+      --maroon-dark: #c8455a;
+      --forest: #6cc081;
+      --forest-dark: #57aa6c;
+
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
+      --shadow-md: 0 10px 30px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
+      --shadow-lg: 0 24px 60px rgba(0,0,0,0.55), 0 8px 20px rgba(0,0,0,0.4);
+    }
+  }
+
+  /* ===================== Reset ===================== */
+  *, *::before, *::after { box-sizing: border-box; }
+  html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    font-family: var(--font);
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--bg);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  img { max-width: 100%; display: block; }
+  a { color: inherit; }
+
+  /* ===================== Layout helpers ===================== */
+  .container {
+    width: 100%;
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  .section { padding: var(--space-2xl) 0; }
+  .section--tight { padding: var(--space-xl) 0; }
+  .section-soft { background: var(--bg-soft); }
+
+  .section-head { text-align: center; max-width: 640px; margin: 0 auto var(--space-xl); }
+  .section-head h2 {
+    font-size: clamp(28px, 4vw, 40px);
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin: 0 0 12px;
+  }
+  .section-head p {
+    font-size: 19px;
+    color: var(--text-muted);
+    margin: 0;
+  }
+  .eyebrow {
+    display: inline-block;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--maroon);
+    margin-bottom: 14px;
+  }
+
+  /* ===================== Header ===================== */
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: color-mix(in srgb, var(--bg) 82%, transparent);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    backdrop-filter: saturate(180%) blur(20px);
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    text-decoration: none;
+  }
+  .brand img { width: 30px; height: 30px; border-radius: 8px; }
+  .header-nav { display: flex; align-items: center; gap: 28px; }
+  .header-nav a {
+    text-decoration: none;
+    color: var(--text-muted);
+    font-size: 15px;
+    font-weight: 500;
+    transition: color 0.15s ease;
+  }
+  .header-nav a:hover { color: var(--text); }
+  .header-nav .nav-links { display: flex; gap: 28px; }
+
+  /* ===================== Buttons ===================== */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    font-family: inherit;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    border-radius: var(--radius-sm);
+    transition: transform 0.12s ease, box-shadow 0.2s ease, background 0.2s ease;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn--primary {
+    background: var(--maroon);
+    color: #fff;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--maroon) 35%, transparent);
+  }
+  .btn--primary:hover { background: var(--maroon-dark); box-shadow: 0 10px 24px color-mix(in srgb, var(--maroon) 40%, transparent); }
+  .btn--lg { padding: 16px 32px; font-size: 18px; }
+  .btn--sm { padding: 9px 18px; font-size: 15px; }
+  .btn--ghost {
+    background: var(--surface);
+    color: var(--text);
+    border: 1px solid var(--border-strong);
+    box-shadow: var(--shadow-sm);
+  }
+  .btn--ghost:hover { background: var(--surface-2); }
+
+  /* ===================== Hero ===================== */
+  .hero {
+    position: relative;
+    padding: clamp(48px, 8vw, 96px) 0 var(--space-2xl);
+    overflow: hidden;
+  }
+  .hero::before {
+    content: "";
+    position: absolute;
+    inset: -40% -10% auto -10%;
+    height: 620px;
+    background:
+      radial-gradient(60% 70% at 22% 30%, color-mix(in srgb, var(--sea) 22%, transparent), transparent 70%),
+      radial-gradient(55% 65% at 82% 18%, color-mix(in srgb, var(--maroon) 12%, transparent), transparent 70%);
+    z-index: 0;
+    pointer-events: none;
+  }
+  .hero__grid {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1.05fr 1fr;
+    gap: clamp(32px, 5vw, 72px);
+    align-items: center;
+  }
+  .hero__logo {
+    width: 76px; height: 76px;
+    border-radius: 18px;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 26px;
+  }
+  .hero h1 {
+    font-size: clamp(38px, 6vw, 60px);
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    margin: 0 0 18px;
+  }
+  .hero__tagline {
+    font-size: clamp(19px, 2.4vw, 23px);
+    font-weight: 600;
+    color: var(--text);
+    margin: 0 0 14px;
+    letter-spacing: -0.01em;
+  }
+  .hero__tagline .dot { color: var(--text-faint); margin: 0 8px; font-weight: 400; }
+  .hero__sub {
+    font-size: 18px;
+    color: var(--text-muted);
+    margin: 0 0 32px;
+    max-width: 480px;
+  }
+  .hero__cta { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; }
+  .hero__meta {
+    font-size: 14px;
+    color: var(--text-faint);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hero__meta .sep { opacity: 0.5; }
+
+  .kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.7em;
+    padding: 0.1em 0.5em;
+    font-size: 0.9em;
+    font-weight: 600;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-bottom-width: 2px;
+    border-radius: 7px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ===================== Screenshot placeholders ===================== */
+  /*
+    Чтобы заменить плейсхолдер реальным скриншотом — удали блок .ph
+    и вставь <img class="shot shot--hero" src="assets/hero.png" alt="...">
+    (классы shot--hero / shot--menubar / shot--hud сохраняют рамку и тень)
+  */
+  .shot {
+    display: block;
+    width: 100%;
+    height: auto;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+  }
+  .shot--menubar { width: 100%; max-width: 320px; }
+  .ph {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 24px;
+    border-radius: var(--radius);
+    border: 1.5px dashed var(--border-strong);
+    background:
+      repeating-linear-gradient(135deg, transparent, transparent 14px,
+        color-mix(in srgb, var(--sea) 6%, transparent) 14px,
+        color-mix(in srgb, var(--sea) 6%, transparent) 15px),
+      var(--surface-2);
+    color: var(--text-muted);
+    box-shadow: var(--shadow-md);
+  }
+  .ph__icon {
+    width: 48px; height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 12px;
+    background: var(--sea-soft);
+    font-size: 24px;
+  }
+  .ph__title { font-weight: 600; font-size: 15px; color: var(--text); }
+  .ph__desc { font-size: 13px; max-width: 260px; line-height: 1.45; }
+  .ph__ratio {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: var(--text-faint);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 999px;
+  }
+  .ph--hero { aspect-ratio: 16 / 10; width: 100%; }
+  .ph--menubar { aspect-ratio: 3 / 4; width: 100%; max-width: 320px; }
+  .ph--hud { aspect-ratio: 3 / 1; width: 100%; }
+
+  /* ===================== Steps (Как это работает) ===================== */
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    counter-reset: step;
+  }
+  .step {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 32px 28px;
+    box-shadow: var(--shadow-sm);
+  }
+  .step__num {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px; height: 44px;
+    border-radius: 12px;
+    background: color-mix(in srgb, var(--maroon) 12%, transparent);
+    color: var(--maroon);
+    font-size: 20px;
+    font-weight: 700;
+    margin-bottom: 18px;
+  }
+  .step h3 { font-size: 19px; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .step p { margin: 0; color: var(--text-muted); font-size: 16px; }
+  .step__arrow {
+    position: absolute;
+    right: -26px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--border-strong);
+    font-size: 22px;
+    z-index: 2;
+  }
+  .steps .step:last-child .step__arrow { display: none; }
+
+  /* ===================== Benefits ===================== */
+  .benefits {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+  }
+  .benefit {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 24px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.18s ease, box-shadow 0.2s ease;
+  }
+  .benefit:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+  .benefit__emoji {
+    font-size: 30px;
+    margin-bottom: 14px;
+    display: block;
+    line-height: 1;
+  }
+  .benefit h3 { font-size: 17px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .benefit p { margin: 0; font-size: 15px; color: var(--text-muted); line-height: 1.5; }
+
+  /* ===================== Features ===================== */
+  .features__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(32px, 5vw, 64px);
+    align-items: center;
+  }
+  .feature-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 22px; }
+  .feature-list li { display: flex; gap: 16px; }
+  .feature-list .fl-icon {
+    flex: 0 0 auto;
+    width: 40px; height: 40px;
+    display: flex; align-items: center; justify-content: center;
+    border-radius: 11px;
+    background: var(--sea-soft);
+    font-size: 20px;
+  }
+  .feature-list h3 { margin: 0 0 3px; font-size: 17px; letter-spacing: -0.01em; }
+  .feature-list p { margin: 0; font-size: 15px; color: var(--text-muted); line-height: 1.5; }
+
+  .features__shots { display: grid; gap: 24px; }
+  .features__shots .shots-row {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 24px;
+    align-items: start;
+  }
+
+  /* ===================== Install ===================== */
+  .install {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    counter-reset: ins;
+  }
+  .install__step {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px 22px;
+    box-shadow: var(--shadow-sm);
+    position: relative;
+  }
+  .install__step::before {
+    counter-increment: ins;
+    content: counter(ins);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px; height: 34px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--forest) 14%, transparent);
+    color: var(--forest);
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 16px;
+  }
+  .install__step h3 { font-size: 16px; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .install__step p { margin: 0; font-size: 14px; color: var(--text-muted); line-height: 1.5; }
+  .install__note {
+    text-align: center;
+    margin-top: 28px;
+    font-size: 15px;
+    color: var(--text-muted);
+  }
+  .install__note a { color: var(--maroon); text-decoration: none; font-weight: 600; }
+  .install__note a:hover { text-decoration: underline; }
+
+  /* ===================== Requirements ===================== */
+  .reqs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    justify-content: center;
+  }
+  .req {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 12px 22px;
+    box-shadow: var(--shadow-sm);
+    font-weight: 500;
+  }
+  .req .req-emoji { font-size: 20px; }
+
+  /* ===================== Final CTA ===================== */
+  .final-cta {
+    text-align: center;
+    background:
+      radial-gradient(70% 120% at 50% 0%, color-mix(in srgb, var(--sea) 14%, transparent), transparent 70%),
+      var(--bg-soft);
+    border-radius: var(--radius-lg);
+    padding: clamp(48px, 7vw, 80px) 24px;
+    border: 1px solid var(--border);
+  }
+  .final-cta img { width: 64px; height: 64px; border-radius: 16px; margin: 0 auto 22px; box-shadow: var(--shadow-md); }
+  .final-cta h2 { font-size: clamp(28px, 4vw, 40px); margin: 0 0 12px; letter-spacing: -0.02em; }
+  .final-cta p { font-size: 18px; color: var(--text-muted); margin: 0 0 30px; }
+
+  /* ===================== Footer ===================== */
+  .site-footer {
+    border-top: 1px solid var(--border);
+    padding: 40px 0;
+    background: var(--bg-soft);
+  }
+  .site-footer__inner {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+  .footer-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+  .footer-brand img { width: 26px; height: 26px; border-radius: 7px; }
+  .footer-meta { font-size: 14px; color: var(--text-muted); }
+  .footer-meta strong { color: var(--text); font-weight: 600; }
+  .footer-links { display: flex; gap: 22px; font-size: 14px; }
+  .footer-links a { color: var(--text-muted); text-decoration: none; }
+  .footer-links a:hover { color: var(--text); }
+
+  /* ===================== Responsive ===================== */
+  @media (max-width: 980px) {
+    .hero__grid { grid-template-columns: 1fr; gap: 40px; }
+    .hero__cta { align-items: flex-start; }
+    .benefits { grid-template-columns: 1fr 1fr; }
+    .install { grid-template-columns: 1fr 1fr; }
+    .features__grid { grid-template-columns: 1fr; }
+    .features__shots .shots-row { grid-template-columns: 1fr; }
+    .ph--menubar, .shot--menubar { max-width: none; }
+  }
+  @media (max-width: 680px) {
+    body { font-size: 16px; }
+    .section { padding: var(--space-xl) 0; }
+    .header-nav .nav-links { display: none; }
+    .steps { grid-template-columns: 1fr; }
+    .step__arrow { display: none !important; }
+    .benefits { grid-template-columns: 1fr; }
+    .install { grid-template-columns: 1fr; }
+    .hero__tagline { font-size: 19px; }
+    .hero__tagline .dot { display: inline; }
+    .btn--lg { width: 100%; }
+    .hero__cta { align-self: stretch; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    * { transition: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== Header ===================== -->
+<header class="site-header">
+  <div class="container site-header__inner">
+    <a href="#top" class="brand">
+      <img src="assets/icon.png" alt="WhisperSeal">
+      <span>WhisperSeal</span>
+    </a>
+    <nav class="header-nav">
+      <div class="nav-links">
+        <a href="#how">Как это работает</a>
+        <a href="#features">Возможности</a>
+        <a href="#install">Установка</a>
+      </div>
+      <a class="btn btn--primary btn--sm" href="https://github.com/SiberianGrandSeal/WhisperSeal/releases/latest">Скачать</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+<!-- ===================== Hero ===================== -->
+<section class="hero">
+  <div class="container hero__grid">
+    <div class="hero__text">
+      <img class="hero__logo" src="assets/icon.png" alt="Иконка WhisperSeal">
+      <h1>WhisperSeal</h1>
+      <p class="hero__tagline">
+        Голосовой ввод текста для Mac.<span class="dot">·</span>Бесплатно.<span class="dot">·</span>Офлайн.<span class="dot">·</span>Без подписок.
+      </p>
+      <p class="hero__sub">
+        Зажми <span class="kbd">⌥</span> правый Option, говори — и распознанный текст появится прямо там, где курсор.
+      </p>
+      <div class="hero__cta">
+        <a class="btn btn--primary btn--lg" href="https://github.com/SiberianGrandSeal/WhisperSeal/releases/latest">
+          ⬇ Скачать для Mac
+        </a>
+        <p class="hero__meta">
+          macOS 14+ <span class="sep">·</span> Apple Silicon (M1/M2/M3/M4)
+        </p>
+      </div>
+    </div>
+
+    <div class="hero__media">
+      <img class="shot shot--hero" src="assets/hero.png" alt="Окно Mac с плавающей панелькой записи WhisperSeal">
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Как это работает ===================== -->
+<section class="section section-soft" id="how">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Проще не бывает</span>
+      <h2>Как это работает</h2>
+      <p>Три движения — и мысль уже превратилась в текст.</p>
+    </div>
+    <div class="steps">
+      <div class="step">
+        <div class="step__num">1</div>
+        <h3>Зажми правый Option</h3>
+        <p>Поставь курсор в любое поле и удерживай клавишу <span class="kbd">⌥</span>.</p>
+        <span class="step__arrow">→</span>
+      </div>
+      <div class="step">
+        <div class="step__num">2</div>
+        <h3>Говори</h3>
+        <p>Просто продиктуй то, что хочешь написать — обычным голосом.</p>
+        <span class="step__arrow">→</span>
+      </div>
+      <div class="step">
+        <div class="step__num">3</div>
+        <h3>Отпусти — текст вставлен</h3>
+        <p>Отпускаешь клавишу — и распознанный текст сразу появляется на месте курсора.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Преимущества ===================== -->
+<section class="section">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Почему WhisperSeal</span>
+      <h2>Ваш голос остаётся у вас</h2>
+      <p>Никаких облаков, аккаунтов и счётчиков минут.</p>
+    </div>
+    <div class="benefits">
+      <div class="benefit">
+        <span class="benefit__emoji">🔒</span>
+        <h3>Полностью офлайн</h3>
+        <p>Аудио не уходит в интернет — распознавание идёт прямо на вашем Mac.</p>
+      </div>
+      <div class="benefit">
+        <span class="benefit__emoji">🆓</span>
+        <h3>Бесплатно навсегда</h3>
+        <p>Без подписок, без пробных периодов и без скрытых платежей.</p>
+      </div>
+      <div class="benefit">
+        <span class="benefit__emoji">⚡</span>
+        <h3>Быстро и локально</h3>
+        <p>Распознавание ускоряется на Apple GPU — результат почти мгновенно.</p>
+      </div>
+      <div class="benefit">
+        <span class="benefit__emoji">🌍</span>
+        <h3>Русский и английский</h3>
+        <p>Диктуйте на любом из двух языков — модель понимает оба.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Возможности ===================== -->
+<section class="section section-soft" id="features">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Возможности</span>
+      <h2>Маленькое приложение с характером</h2>
+      <p>Живёт в строке статуса и не мешает работе.</p>
+    </div>
+
+    <div class="features__grid">
+      <ul class="feature-list">
+        <li>
+          <span class="fl-icon">📊</span>
+          <div>
+            <h3>Живая визуализация голоса</h3>
+            <p>Плавающая панелька показывает волну вашего голоса в реальном времени.</p>
+          </div>
+        </li>
+        <li>
+          <span class="fl-icon">✕</span>
+          <div>
+            <h3>Отмена одним кликом</h3>
+            <p>Передумали? Нажмите красный крестик — запись отменится, ничего не вставится.</p>
+          </div>
+        </li>
+        <li>
+          <span class="fl-icon">🎚️</span>
+          <div>
+            <h3>Выбор модели распознавания</h3>
+            <p>От самой быстрой до самой точной — выбирайте баланс скорости и качества.</p>
+          </div>
+        </li>
+        <li>
+          <span class="fl-icon">⌨️</span>
+          <div>
+            <h3>Два режима горячей клавиши</h3>
+            <p>Hold — пока держите клавишу. Toggle — нажал, говоришь, нажал ещё раз.</p>
+          </div>
+        </li>
+      </ul>
+
+      <div class="features__shots">
+        <div class="shots-row">
+          <img class="shot shot--menubar" src="assets/menubar.png" alt="Меню WhisperSeal в строке статуса">
+          <div style="align-self:center; color:var(--text-muted); font-size:15px; line-height:1.6;">
+            <strong style="color:var(--text); display:block; margin-bottom:6px;">Всё под рукой</strong>
+            Выбор модели, языка, режима клавиши и история последних надиктовок — прямо из строки статуса.
+          </div>
+        </div>
+
+        <img class="shot shot--hud" src="assets/hud.png" alt="Крупный план плавающей панели записи WhisperSeal">
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Установка ===================== -->
+<section class="section" id="install">
+  <div class="container">
+    <div class="section-head">
+      <span class="eyebrow">Установка</span>
+      <h2>Готово за пару минут</h2>
+      <p>Четыре простых шага — и можно диктовать.</p>
+    </div>
+    <div class="install">
+      <div class="install__step">
+        <h3>Скачайте DMG</h3>
+        <p>Нажмите «Скачать для Mac» и откройте загруженный файл.</p>
+      </div>
+      <div class="install__step">
+        <h3>Перетащите в Applications</h3>
+        <p>В открывшемся окне перетащите тюленя 🦭 в папку «Программы».</p>
+      </div>
+      <div class="install__step">
+        <h3>Разрешите запуск</h3>
+        <p>В Системных настройках → «Конфиденциальность и безопасность» нажмите «Открыть всё равно».</p>
+      </div>
+      <div class="install__step">
+        <h3>Дайте доступ</h3>
+        <p>Разрешите доступ к микрофону и Универсальному доступу — чтобы вставлять текст.</p>
+      </div>
+    </div>
+    <p class="install__note">
+      Подробная инструкция — в <a href="https://github.com/SiberianGrandSeal/WhisperSeal/releases/latest">описании релиза</a>.
+    </p>
+  </div>
+</section>
+
+<!-- ===================== Требования ===================== -->
+<section class="section section-soft section--tight">
+  <div class="container">
+    <div class="section-head" style="margin-bottom:32px;">
+      <h2>Что нужно</h2>
+    </div>
+    <div class="reqs">
+      <div class="req"><span class="req-emoji">💻</span> macOS 14 (Sonoma) и новее</div>
+      <div class="req"><span class="req-emoji">🍏</span> Apple Silicon — M1, M2, M3 или M4</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== Final CTA ===================== -->
+<section class="section">
+  <div class="container">
+    <div class="final-cta">
+      <img src="assets/icon.png" alt="WhisperSeal">
+      <h2>Попробуйте говорить вместо набора</h2>
+      <p>Бесплатно. Офлайн. Без аккаунтов.</p>
+      <a class="btn btn--primary btn--lg" href="https://github.com/SiberianGrandSeal/WhisperSeal/releases/latest">
+        ⬇ Скачать для Mac
+      </a>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<!-- ===================== Footer ===================== -->
+<footer class="site-footer">
+  <div class="container site-footer__inner">
+    <div class="footer-brand">
+      <img src="assets/icon.png" alt="WhisperSeal">
+      <span>WhisperSeal</span>
+    </div>
+    <div class="footer-meta">
+      <strong>Бесплатно для использования</strong> (free to use). Не open-source. &nbsp;·&nbsp; © 2026 SiberianGrandSeal
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/SiberianGrandSeal/WhisperSeal/releases">Релизы</a>
+      <a href="https://github.com/SiberianGrandSeal/WhisperSeal">GitHub</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
